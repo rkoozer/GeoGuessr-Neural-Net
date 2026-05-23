@@ -63,4 +63,4 @@ model.load_state_dict(checkpoint['model_state_dict'])
 |---------|-----------|--------|-----------|-------|
 | v1 | 124 | 40 | 47.1% | Unbalanced dataset |
 | v4 | 124 | 90 | 53.5% | Fine-tuned from v1 |
-| v5 | 76 | 40 | 21.8% | Balanced dataset, training in progress |
+| v6 | 76 | 40 | 28.3% | Balanced dataset, training in progress |
