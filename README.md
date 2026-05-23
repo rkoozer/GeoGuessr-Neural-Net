@@ -1,6 +1,6 @@
 # GeoGuessr Country Classifier
 
-A CNN trained from scratch to predict which country a Google Street View image is from, with a real-time GeoGuessr assistant.
+A CNN trained from scratch to predict which country a GeoGuessr image is from, with a real-time GeoGuessr assistant.
 
 ## Installation
 
