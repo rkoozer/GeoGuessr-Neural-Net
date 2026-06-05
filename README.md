@@ -1,6 +1,6 @@
 # GeoGuessr Country Classifier
 
-A CNN trained from scratch to predict which country a GeoGuessr image is from, with a real-time GeoGuessr assistant.
+A CNN trained from scratch to predict which country a Google Street View image is from, with a real-time GeoGuessr assistant.
 
 ## Installation
 
@@ -10,28 +10,34 @@ pip install -e .
 
 ## Dataset
 
-Downloaded automatically via kagglehub:
+Two datasets are merged during training:
 
+**Primary — GeoGuessr 50k (Kaggle):**
 ```python
 import kagglehub
 path = kagglehub.dataset_download("ubitquitin/geolocation-geoguessr-images-50k")
 ```
 
-~50k street view images across 124 countries. After balancing (min 50, max 1000 per country): 76 countries, ~38k images.
+**Supplemental — GSV Cities (Kaggle):**
+```python
+path2 = kagglehub.dataset_download("amaralibey/gsv-cities")
+```
+
+The merged dataset covers **57 countries** with a minimum of 100 images per country and a cap of 2,000. GSV Cities images are mapped from city names to country labels using a built-in city→country dictionary. Total training samples after merge: ~50k.
 
 ## Project Structure
 
 ```
 geoguessr-classifier/
 ├── notebooks/
-│   ├── data_demo.ipynb          # Dataset loading demo (start here)
-│   └── DSCI410_CNN_Project.ipynb # Full training notebook
+│   ├── data_demo.ipynb              # Dataset loading demo (start here)
+│   └── DSCI410_CNN_Project.ipynb    # Full training notebook (v13)
 ├── geoguessr/
 │   ├── __init__.py
-│   ├── model.py                 # GeoConvModelV1 architecture
-│   ├── dataset.py               # RemappedSubset, data loading
-│   └── train.py                 # Training loop
-├── geoguessr_assistant.py       # Real-time screen capture assistant
+│   ├── model.py                     # GeoConvModelV1 architecture
+│   ├── dataset.py                   # MergedGeoDataset, data loading
+│   └── train.py                     # Training loop
+├── geoguessr_assistant.py           # Real-time screen capture assistant
 ├── setup.py
 └── README.md
 ```
@@ -39,28 +45,71 @@ geoguessr-classifier/
 ## Usage
 
 ### Training
-Open `notebooks/DSCI410_CNN_Project.ipynb` and run all cells.
 
-### Real-time assistant (Windows)
+Open `notebooks/DSCI410_CNN_Project.ipynb` and run all cells. The notebook loads a previous checkpoint and fine-tunes from it — update `MODEL_PATH` in `train_geo_model()` to point to your latest `.pth` file.
+
+### Real-time assistant
+
 ```bash
 python geoguessr_assistant.py
 ```
-Captures your screen every 3 seconds while you play GeoGuessr and displays running country predictions.
+
+Captures your screen every 3 seconds while you play GeoGuessr and displays running country predictions with a vote-accumulation system (predictions get more stable over time). Requires a display (Windows or Linux with `$DISPLAY` set). On a headless server, run it locally instead.
+
+Update `MODEL_PATH` at the top of `geoguessr_assistant.py` to point to your weights file.
 
 ### Inference
-```python
-from geoguessr.model import GeoConvModelV1
-import torch
 
-checkpoint = torch.load("geo_cnn_weights_v5_balanced.pth")
-model = GeoConvModelV1(num_classes=checkpoint['num_classes'])
-model.load_state_dict(checkpoint['model_state_dict'])
+```python
+import torch
+from geoguessr.model import GeoConvModelV1
+
+checkpoint = torch.load("geo_cnn_weights_v13_min100.pth", weights_only=False)
+model = GeoConvModelV1(num_classes=checkpoint["num_classes"])
+model.load_state_dict(checkpoint["model_state_dict"])
+model.eval()
+
+# checkpoint["classes"] — list of country name strings
+# checkpoint["accuracy"] — test accuracy at save time
 ```
+
+## Model Architecture
+
+`GeoConvModelV1` — a custom 5-block CNN trained from scratch:
+
+| Layer   | Channels | Operation                          |
+|---------|----------|------------------------------------|
+| Block 1 | 3 → 32   | Conv3×3 + BN + ReLU + MaxPool2×2  |
+| Block 2 | 32 → 64  | Conv3×3 + BN + ReLU + MaxPool2×2  |
+| Block 3 | 64 → 128 | Conv3×3 + BN + ReLU + MaxPool2×2  |
+| Block 4 | 128 → 256| Conv3×3 + BN + ReLU + MaxPool2×2  |
+| Block 5 | 256 → 512| Conv3×3 + BN + ReLU + MaxPool2×2  |
+| FC      | 512×7×7 → 1024 → 256 → num_classes | Dropout(0.4) ×2 |
+
+Input: 224×224 RGB, ImageNet normalization.
 
 ## Results
 
-| Version | Countries | Epochs | Top-1 Acc | Notes |
-|---------|-----------|--------|-----------|-------|
-| v1 | 124 | 40 | 47.1% | Unbalanced dataset |
-| v4 | 124 | 90 | 53.5% | Fine-tuned from v1 |
-| v6 | 76 | 40 | 28.3% | Balanced dataset, training in progress |
+| Version | Countries | Epochs | Top-1 Acc | Notes                                        |
+|---------|-----------|--------|-----------|----------------------------------------------|
+| v1      | 124       | 40     | 47.1%     | Baseline, unbalanced dataset                 |
+| v4      | 124       | 90     | 53.5%     | Fine-tuned from v1                           |
+| v5      | 76        | 40     | 21.8%     | Balanced dataset experiment                  |
+| v13     | 57        | 60     | 46.96%    | Merged dataset (min 100/country, max 2000), fine-tuned from v12 |
+
+**Training config (v13):** lr=1e-5, Adam + weight decay 1e-4, CosineAnnealingLR, batch size 256, data augmentation (random crop, flip, rotation, color jitter, random erasing).
+
+## Checkpoint Format
+
+All checkpoints from v5 onward use the following format:
+
+```python
+{
+    "model_state_dict": ...,
+    "num_classes": 57,
+    "classes": [...],        # ordered list of country name strings
+    "architecture": "GeoConvModelV1",
+    "accuracy": 0.4696,
+    "epochs_trained": 60,
+}
+```
