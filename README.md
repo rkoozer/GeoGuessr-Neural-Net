@@ -31,7 +31,7 @@ The merged dataset covers **57 countries** with a minimum of 100 images per coun
 geoguessr-classifier/
 ├── notebooks/
 │   ├── data_demo.ipynb              # Dataset loading demo (start here)
-│   └── DSCI410_CNN_Project.ipynb    # Full training notebook (v13)
+│   └── DSCI410_CNN_Project.ipynb    # Full training notebook (v15)
 ├── geoguessr/
 │   ├── __init__.py
 │   ├── model.py                     # GeoConvModelV1 architecture
@@ -64,7 +64,7 @@ Update `MODEL_PATH` at the top of `geoguessr_assistant.py` to point to your weig
 import torch
 from geoguessr.model import GeoConvModelV1
 
-checkpoint = torch.load("geo_cnn_weights_v13_min100.pth", weights_only=False)
+checkpoint = torch.load("geo_cnn_weights_v15_min100.pth", weights_only=False)
 model = GeoConvModelV1(num_classes=checkpoint["num_classes"])
 model.load_state_dict(checkpoint["model_state_dict"])
 model.eval()
@@ -96,8 +96,10 @@ Input: 224×224 RGB, ImageNet normalization.
 | v4      | 124       | 90     | 53.5%     | Fine-tuned from v1                           |
 | v5      | 76        | 40     | 21.8%     | Balanced dataset experiment                  |
 | v13     | 57        | 60     | 46.96%    | Merged dataset (min 100/country, max 2000), fine-tuned from v12 |
+| v14     | 57        | 60     | 50.0%     | Fine-tuned from v13                                              |
+| v15     | 57        | 60     | ~50.0%    | Fine-tuned from v14, reduced augmentation (no ColorJitter/RandomErasing) |
 
-**Training config (v13):** lr=1e-5, Adam + weight decay 1e-4, CosineAnnealingLR, batch size 256, data augmentation (random crop, flip, rotation, color jitter, random erasing).
+**Training config (v15):** lr=1e-5, Adam + weight decay 1e-4, CosineAnnealingLR, batch size 256, data augmentation (random crop, flip, rotation, random grayscale).
 
 ## Checkpoint Format
 
@@ -109,7 +111,7 @@ All checkpoints from v5 onward use the following format:
     "num_classes": 57,
     "classes": [...],        # ordered list of country name strings
     "architecture": "GeoConvModelV1",
-    "accuracy": 0.4696,
+    "accuracy": 0.500,
     "epochs_trained": 60,
 }
 ```
