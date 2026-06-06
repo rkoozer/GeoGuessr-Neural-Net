@@ -21,7 +21,7 @@ import os
 from collections import defaultdict
 
 
-# ── Model Definition (must match training code exactly) ──────────────────────
+#Model Definition (must match training code exactly)
 class GeoConvModelV1(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -58,14 +58,14 @@ class GeoConvModelV1(nn.Module):
         return self.classifier(x)
 
 
-# ── Config ────────────────────────────────────────────────────────────────────
-MODEL_PATH = "geo_cnn_weights_v13_min100.pth"
+# Config
+MODEL_PATH = "geo_cnn_weights_v15_min100.pth"
 INTERVAL   = 3.0   # seconds between screenshots
 TOP_N      = 5     # number of top countries to show
 MIN_CONF   = 0.05  # minimum confidence threshold to display
 
 
-# ── Load Model ────────────────────────────────────────────────────────────────
+# Load Model
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 checkpoint = torch.load(MODEL_PATH, map_location=device, weights_only=False)
@@ -87,7 +87,7 @@ else:
 model.eval()
 
 
-# ── Transform (must match eval_transform in training) ────────────────────────
+# Transform (must match eval_transform in training) 
 eval_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -96,7 +96,7 @@ eval_transform = transforms.Compose([
 ])
 
 
-# ── Assistant Loop ────────────────────────────────────────────────────────────
+# Assistant Loop 
 def run_assistant():
     vote_totals      = defaultdict(float)
     screenshot_count = 0
