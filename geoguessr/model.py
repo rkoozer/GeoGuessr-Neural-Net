@@ -5,7 +5,6 @@ Output: Logits over num_classes countries
 """
 import torch.nn as nn
 
-
 class GeoConvModelV1(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
