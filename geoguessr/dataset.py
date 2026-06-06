@@ -1,111 +1,141 @@
-import torch
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, SubsetRandomSampler
+"""
+dataset.py — data loading for the merged GeoGuessr + GSV Cities dataset.
+
+Merges two Kaggle datasets:
+  - ubitquitin/geolocation-geoguessr-images-50k  (primary)
+  - amaralibey/gsv-cities                         (supplemental)
+
+Countries with fewer than MIN_IMAGES are dropped; each is capped at MAX_IMAGES.
+"""
+import os
+import glob
 from collections import defaultdict, Counter
+
 import numpy as np
+from PIL import Image
+import torch
+from torch.utils.data import Dataset, DataLoader
+from torchvision import datasets, transforms
 
 
-class RemappedSubset(torch.utils.data.Dataset):
-    """
-    Wraps an ImageFolder dataset, keeping only a subset of indices
-    and remapping class labels to be contiguous (0, 1, 2, ...).
+IMG_SIZE   = 224
+BATCH_SIZE = 256
+VALID_FRAC = 0.15
+TEST_FRAC  = 0.15
+MIN_IMAGES = 100
+MAX_IMAGES = 2000
 
-    This is needed after dropping underrepresented classes so that
-    CrossEntropyLoss receives labels in range [0, num_classes).
-    """
-    def __init__(self, dataset, indices, label_map):
-        self.dataset   = dataset
-        self.indices   = indices
-        self.label_map = label_map
+CITY_TO_COUNTRY = {
+    'Bangkok': 'Thailand', 'Barcelona': 'Spain', 'Boston': 'United States',
+    'Brussels': 'Belgium', 'BuenosAires': 'Argentina', 'Chicago': 'United States',
+    'Lisbon': 'Portugal', 'London': 'United Kingdom', 'LosAngeles': 'United States',
+    'Madrid': 'Spain', 'Medellin': 'Colombia', 'Melbourne': 'Australia',
+    'MexicoCity': 'Mexico', 'Miami': 'United States', 'Minneapolis': 'United States',
+    'OSL': 'Norway', 'Osaka': 'Japan', 'PRG': 'Czech Republic', 'PRS': 'France',
+    'Phoenix': 'United States', 'Rome': 'Italy', 'TRT': 'Turkey',
+    'WashingtonDC': 'United States',
+}
+
+train_transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.RandomCrop(224),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomRotation(15),
+    transforms.RandomGrayscale(p=0.05),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+eval_transform = transforms.Compose([
+    transforms.Resize((IMG_SIZE, IMG_SIZE)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+
+class MergedGeoDataset(Dataset):
+    """Wraps a list of (image_path, class_index) tuples with an optional transform."""
+    def __init__(self, samples, transform):
+        self.samples   = samples
+        self.transform = transform
 
     def __len__(self):
-        return len(self.indices)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        img, label = self.dataset[self.indices[idx]]
-        return img, self.label_map[label]
+        path, label = self.samples[idx]
+        img = Image.open(path).convert("RGB")
+        return self.transform(img), label
 
 
-def load_balanced_dataset(data_root, min_images=50, max_images=1000,
-                           batch_size=256, valid_frac=0.15, test_frac=0.15,
-                           num_workers=8, random_seed=42):
+def build_merged_dataset(data_root, gsv_path, random_seed=42):
     """
-    Loads and balances the GeoGuessr dataset.
-
-    - Drops countries with fewer than min_images images
-    - Caps countries with more than max_images images
-    - Splits into train / validation / test loaders
-
-    Returns:
-        train_loader, valid_loader, test_loader, classes, num_classes
+    Merge primary GeoGuessr-50k dataset with GSV Cities.
+    Returns: all_samples, classes, country_to_idx
     """
     np.random.seed(random_seed)
 
-    train_transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.RandomCrop(224),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomRotation(15),
-        transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.3, hue=0.1),
-        transforms.RandomGrayscale(p=0.05),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std =[0.229, 0.224, 0.225]),
-        transforms.RandomErasing(p=0.1),
-    ])
-    eval_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std =[0.229, 0.224, 0.225]),
-    ])
+    full_dataset  = datasets.ImageFolder(root=data_root, transform=None)
+    all_classes   = full_dataset.classes
+    label_counts  = Counter(full_dataset.targets)
+    valid_classes = {idx for idx, count in label_counts.items() if count >= MIN_IMAGES}
 
-    full_train = datasets.ImageFolder(root=data_root, transform=train_transform)
-    full_eval  = datasets.ImageFolder(root=data_root, transform=eval_transform)
-    all_classes = full_train.classes
+    print(f"Primary dataset : {len(full_dataset)} images, {len(all_classes)} countries")
+    print(f"After min-{MIN_IMAGES} filter: {len(valid_classes)} countries remain")
 
-    # Drop classes with too few images, cap classes with too many
-    label_counts  = Counter(full_train.targets)
-    valid_classes = {idx for idx, count in label_counts.items() if count >= min_images}
+    gsv_samples = []
+    for city, country in CITY_TO_COUNTRY.items():
+        city_folder = os.path.join(gsv_path, city)
+        if os.path.exists(city_folder):
+            for img_path in glob.glob(os.path.join(city_folder, "*.jpg")):
+                gsv_samples.append((img_path, country))
+    np.random.shuffle(gsv_samples)
+    print(f"GSV Cities      : {len(gsv_samples)} images, {len(set(c for _, c in gsv_samples))} countries")
 
-    class_seen       = defaultdict(int)
-    balanced_indices = []
-    for idx, label in enumerate(full_train.targets):
-        if label in valid_classes and class_seen[label] < max_images:
-            balanced_indices.append(idx)
-            class_seen[label] += 1
+    classes        = sorted(set(all_classes[i] for i in valid_classes) | set(CITY_TO_COUNTRY.values()))
+    country_to_idx = {name: idx for idx, name in enumerate(classes)}
+    print(f"Merged classes  : {len(classes)} countries")
 
-    # Remap labels to be contiguous after dropping classes
-    kept_class_indices = sorted(valid_classes)
-    old_to_new  = {old: new for new, old in enumerate(kept_class_indices)}
-    classes     = [all_classes[i] for i in kept_class_indices]
-    num_classes = len(classes)
+    country_seen = defaultdict(int)
+    all_samples  = []
+    for img_path, label_idx in full_dataset.samples:
+        country = all_classes[label_idx]
+        if label_idx in valid_classes and country_seen[country] < MAX_IMAGES:
+            all_samples.append((img_path, country_to_idx[country]))
+            country_seen[country] += 1
+    for img_path, country in gsv_samples:
+        if country_seen[country] < MAX_IMAGES:
+            all_samples.append((img_path, country_to_idx[country]))
+            country_seen[country] += 1
 
-    train_dataset = RemappedSubset(full_train, balanced_indices, old_to_new)
-    eval_dataset  = RemappedSubset(full_eval,  balanced_indices, old_to_new)
+    print(f"Total samples   : {len(all_samples)}")
+    return all_samples, classes, country_to_idx
 
-    # Split indices
-    n       = len(train_dataset)
+
+def make_dataloaders(all_samples, random_seed=42):
+    """
+    Split samples into train/val/test sets and return DataLoaders.
+    Returns: train_loader, valid_loader, test_loader
+    """
+    np.random.seed(random_seed)
+    n       = len(all_samples)
     indices = list(range(n))
     np.random.shuffle(indices)
 
-    test_split  = int(np.floor(test_frac  * n))
-    valid_split = int(np.floor(valid_frac * n))
+    test_split  = int(np.floor(TEST_FRAC  * n))
+    valid_split = int(np.floor(VALID_FRAC * n))
     test_idx    = indices[:test_split]
     valid_idx   = indices[test_split:test_split + valid_split]
     train_idx   = indices[test_split + valid_split:]
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size,
-                              sampler=SubsetRandomSampler(train_idx),
-                              num_workers=num_workers, pin_memory=True,
-                              persistent_workers=True)
-    valid_loader = DataLoader(eval_dataset,  batch_size=batch_size,
-                              sampler=SubsetRandomSampler(valid_idx),
-                              num_workers=num_workers, pin_memory=True,
-                              persistent_workers=True)
-    test_loader  = DataLoader(eval_dataset,  batch_size=batch_size,
-                              sampler=SubsetRandomSampler(test_idx),
-                              num_workers=num_workers, pin_memory=True,
-                              persistent_workers=True)
+    train_loader = DataLoader(MergedGeoDataset([all_samples[i] for i in train_idx], train_transform),
+                              batch_size=BATCH_SIZE, shuffle=True,
+                              num_workers=8, pin_memory=True, persistent_workers=True)
+    valid_loader = DataLoader(MergedGeoDataset([all_samples[i] for i in valid_idx], eval_transform),
+                              batch_size=BATCH_SIZE, shuffle=False,
+                              num_workers=8, pin_memory=True, persistent_workers=True)
+    test_loader  = DataLoader(MergedGeoDataset([all_samples[i] for i in test_idx],  eval_transform),
+                              batch_size=BATCH_SIZE, shuffle=False,
+                              num_workers=8, pin_memory=True, persistent_workers=True)
 
-    return train_loader, valid_loader, test_loader, classes, num_classes
+    print(f"Train: {len(train_idx)} | Valid: {len(valid_idx)} | Test: {len(test_idx)}")
+    return train_loader, valid_loader, test_loader
