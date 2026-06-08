@@ -97,10 +97,16 @@ Input: 224×224 RGB, ImageNet normalization.
 | Version | Countries | Epochs | Top-1 Acc | Notes                                        |
 |---------|-----------|--------|-----------|----------------------------------------------|
 | v1      | 124       | 40     | 47.1%     | Baseline, unbalanced dataset                 |
+|                                  ...                                                    |
 | v4      | 124       | 90     | 53.5%     | Fine-tuned from v1                           |
 | v5      | 76        | 40     | 21.8%     | Balanced dataset experiment                  |
-| v13     | 57        | 60     | 46.96%    | Merged dataset (min 100/country, max 2000), fine-tuned from v12 |
-| v14     | 57        | 60     | 50.0%     | Fine-tuned from v13                                              |
+|                                  ...                                                    |
+| v7      | 76        | 40     | 31.5%     | Balanced dataset converged                   |
+| v8      | 77        | 40     | 36.8%     | Brought in and merged extra data             |
+|                                  ...                                                    |
+| v10     | 77        | 40     | 48.7%     | Merged dataset converged                     |
+| v11     | 57        | 40     | 40.1%     | Continuation from merged dataset, but (min 100/country, max 2000)|
+|                                  ...                                                    |
 | v15     | 57        | 60     | 55.2%     | Fine-tuned from v14, reduced augmentation (no ColorJitter/RandomErasing), more consistant distances between train, test, and validation accuracy |
 
 **Training config (v15):** lr=1e-5, Adam + weight decay 1e-4, CosineAnnealingLR, batch size 256, data augmentation (random crop, flip, rotation, random grayscale).
