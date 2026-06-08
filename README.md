@@ -59,7 +59,7 @@ Captures your screen every 3 seconds while you play GeoGuessr and displays runni
 Update `MODEL_PATH` at the top of `geoguessr_assistant.py` to point to your weights file.
 
 ## Weights
-   To directly download the most up to date weights to run the geoguessr_assistant.py, you can download them from Hugging Face:
+   To directly download the most up to date weights to run the geoguessr_assistant.py, you can download them from Hugging Face under files and versions:
    https://huggingface.co/rkoozer/geoguessr-country-classifier
 
 ### Inference
