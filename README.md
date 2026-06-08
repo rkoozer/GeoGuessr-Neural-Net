@@ -98,14 +98,14 @@ Input: 224×224 RGB, ImageNet normalization.
 |---------|-----------|--------|-----------|----------------------------------------------|
 | v1      | 124       | 40     | 47.1%     | Baseline, unbalanced dataset                 |
 |                                  ...                                                    |
-| v4      | 124       | 90     | 53.5%     | Fine-tuned from v1                           |
-| v5      | 76        | 40     | 21.8%     | Balanced dataset experiment                  |
+| v4      | 124       | 90     | 53.5%     | Fine-tuned from v1 (overfit)                 |
+| v5      | 76        | 40     | 21.8%     | Balanced dataset experiment. Dropped countries with less than 50 images and capped outlier counties to 1000 images |
 |                                  ...                                                    |
 | v7      | 76        | 40     | 31.5%     | Balanced dataset converged                   |
 | v8      | 77        | 40     | 36.8%     | Brought in and merged extra data             |
 |                                  ...                                                    |
 | v10     | 77        | 40     | 48.7%     | Merged dataset converged                     |
-| v11     | 57        | 40     | 40.1%     | Continuation from merged dataset, but (min 100/country, max 2000)|
+| v11     | 57        | 40     | 40.1%     | Continuation from merged dataset, but new min of 100 images per country and new max of 2000|
 |                                  ...                                                    |
 | v15     | 57        | 60     | 55.2%     | Fine-tuned from v14, reduced augmentation (no ColorJitter/RandomErasing), more consistant distances between train, test, and validation accuracy |
 
