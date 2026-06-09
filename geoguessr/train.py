@@ -10,8 +10,8 @@ from timeit import default_timer as timer
 from tqdm import tqdm
 import kagglehub
 
-from model import GeoConvModelV1
-from dataset import build_merged_dataset, make_dataloaders
+from .model import GeoConvModelV1
+from .dataset import build_merged_dataset, make_dataloaders
 
 
 def train_step(model, train_loader, loss_fn, optimizer, device):
