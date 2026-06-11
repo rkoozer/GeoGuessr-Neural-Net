@@ -28,14 +28,14 @@ pip install -e .
 
 Two Kaggle datasets are merged during training:
 
-**Primary — GeoGuessr 50k:**
+**Primary: GeoGuessr 50k:**
 ```python
 import kagglehub
 path = kagglehub.dataset_download("ubitquitin/geolocation-geoguessr-images-50k")
 ```
-Contains ~50,000 Google Street View images organized into country folders across 124 countries. The raw dataset has severe class imbalance — the United States alone has over 12,000 images while many countries have fewer than 20.
+Contains ~50,000 Google Street View images organized into country folders across 124 countries. The raw dataset has severe class imbalance, the United States alone has over 12,000 images while many countries have fewer than 20.
 
-**Supplemental — GSV Cities:**
+**Supplemental: GSV Cities:**
 ```python
 path2 = kagglehub.dataset_download("amaralibey/gsv-cities")
 ```
@@ -82,13 +82,7 @@ GeoGuessr-Neural-Net/
 
 ## How to Train
 
-**Option 1 — Python script (recommended on Talapas):**
-```bash
-python geoguessr/train.py
-```
-Edit `LOAD_CHECKPOINT`, `SAVE_CHECKPOINT`, `NUM_EPOCHS`, and `LEARNING_RATE` at the top of `train.py` before running.
-
-**Option 2 — Jupyter notebook:**
+**Jupyter notebook:**
 Open `notebooks/GeoGuessr_CNN_Project.ipynb` and run all cells. Datasets download automatically via `kagglehub`.
 
 **Training config (v15):**
@@ -126,23 +120,23 @@ Captures your screen every 3 seconds, runs each screenshot through the model, an
 
 ### Metrics
 
-The primary metric is **top-1 accuracy** — the fraction of test images where the model's top prediction matches the true country label. A random baseline over 57 classes would achieve ~1.75%, so 55.2% represents a ~31× improvement over chance.
+The primary metric is **top-1 accuracy**, the fraction of test images where the model's top prediction matches the true country label. A random baseline over 57 classes would achieve ~1.75%, so 55.2% represents a ~31× improvement over chance.
 
 **Top-5 accuracy** (true label in top 5 predictions) is also tracked and is typically 10–15 points higher than top-1. This is the more practical metric for real GeoGuessr use, where players narrow down a region before committing to a country.
 
-The training curve for v15 shows validation and test accuracy tracking closely throughout training (both ~50–55%), with training accuracy running ~7–10 points lower (~43–47%). This gap is caused by data augmentation making training harder than clean evaluation — it is not a sign of overfitting. The close alignment between val and test confirms the model generalizes well.
+The training curve for v15 shows validation and test accuracy tracking closely throughout training (both ~50–55%), with training accuracy running ~7–10 points lower (~43–47%). This gap is caused by data augmentation making training harder than clean evaluation, it is not a sign of overfitting. The close alignment between val and test confirms the model generalizes well.
 
 See `notebooks/evaluation.ipynb` for the full per-class accuracy breakdown, confusion matrix, and example predictions with confidence scores.
 
 ### Prediction Visualization
 
-The evaluation notebook shows sample test images alongside the model's top-5 predicted countries and their confidence scores. Countries with highly distinctive visual signatures — Japan (unique road markings and signage), Russia (Cyrillic signs, vast landscapes), South Africa (distinctive road paint and vegetation) — are predicted reliably. Visually similar countries like Western European nations are frequently confused with each other, which matches human intuition about the difficulty of distinguishing them.
+The evaluation notebook shows sample test images alongside the model's top-5 predicted countries and their confidence scores. Countries with highly distinctive visual signatures, Japan (unique road markings and signage), Russia (Cyrillic signs, vast landscapes), South Africa (distinctive road paint and vegetation), are predicted reliably. Visually similar countries like Western European nations are frequently confused with each other, which matches human intuition about the difficulty of distinguishing them.
 
 ---
 
 ## Model Architecture
 
-`GeoConvModelV1` — a custom 5-block CNN trained from scratch:
+`GeoConvModelV1`, a custom 5-block CNN trained from scratch:
 
 | Layer   | Channels                | Operation                          |
 |---------|-------------------------|------------------------------------|
@@ -166,7 +160,7 @@ Countries with distinctive visual signatures are predicted reliably. The vote-ac
 - **Visually similar countries:** Western European countries share similar architecture, road markings, and vegetation. The model frequently confuses Germany, France, Belgium, and the Netherlands with each other.
 - **Class imbalance:** Despite capping, English-speaking and Western European countries remain overrepresented, and the model is biased toward predicting them.
 - **Domain mismatch:** Training images are Kaggle-scraped street view snapshots; real GeoGuessr rounds use slightly different camera perspectives. The assistant also captures the full browser window including UI elements, adding noise.
-- **No spatial awareness:** The model processes each screenshot independently. It has no concept of panning, multiple viewpoints, or sequential frames — the vote system partially compensates but does not fully solve this.
+- **No spatial awareness:** The model processes each screenshot independently. It has no concept of panning, multiple viewpoints, or sequential frames, the vote system partially compensates but does not fully solve this.
 - **Coverage:** 57 countries covers roughly half the world. Many countries are entirely absent from the dataset.
 
 **Future directions:**
