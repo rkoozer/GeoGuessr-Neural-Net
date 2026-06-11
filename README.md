@@ -6,7 +6,7 @@ A convolutional neural network trained from scratch to predict which country a G
 
 ## Introduction
 
-GeoGuessr is a geography game where players are dropped into a random Google Street View location and must guess where in the world they are based solely on visual cues — road signs, vegetation, architecture, terrain, and driving-side conventions. Skilled players develop an intuition for these cues over time. This project asks: can a CNN learn those same cues from raw pixels alone?
+GeoGuessr is a geography game where players are dropped into a random Google Street View location and must guess where in the world they are based solely on visual cues, road signs, vegetation, architecture, terrain, and driving-side conventions. Skilled players develop an intuition for these cues over time. This project asks: can a CNN learn those same cues from raw pixels alone?
 
 The goal is to train an image classification model that takes a 224×224 street view image as input and outputs a probability distribution over 57 countries. Rather than using a pretrained backbone, the model is built and trained from scratch using PyTorch to better understand how convolutional networks learn geographic features. A secondary goal is to deploy the model as a real-time GeoGuessr assistant that captures your screen every few seconds and accumulates predictions to give a stable country guess over time.
 
