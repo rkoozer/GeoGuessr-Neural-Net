@@ -50,7 +50,7 @@ Contains urban street-level images organized by city. City names are mapped to c
 Training images use data augmentation: random crop (256→224), horizontal flip, rotation (±15°), and random grayscale. Evaluation images are resized to 224×224 with ImageNet normalization only.
 
 **Weights and video example of the GeoGuessr Assistant on Hugging Face:**
-Download the latest weights (v15) and the video of the real time country predictor assistant from:
+Download the latest weights (v15) and view the video of the real time country predictor assistant from:
 https://huggingface.co/rkoozer/geoguessr-country-classifier
 
 **Weights on Talapas:**
